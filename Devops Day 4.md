@@ -419,3 +419,57 @@ CLEAN WRITE-UP. WHAT TO DO:-
 
 37\. see if the change appears on jenkins as well. To see, go to workspace, select the file, and see if the changes appear.
 
+Jenkins on aws commands:
+
+Downloading and installing Jenkins
+
+
+1.	Completing the previous steps enables you to download and install Jenkins on AWS. To download and install Jenkins:
+
+2.	The following steps are written for Amazon Linux 2. If you’re using Amazon Linux 2023, it’s recommended to use dnf instead of yum. While the yum command is still available for compatibility in this context, it is actually a symbolic link to dnf and may not support all of its features. For more details, please refer to the official AWS documentation.
+3.	Ensure that your software packages are up to date on your instance by using the following command to perform a quick software update:
+
+4.	[ec2-user ~]$ sudo yum update –y
+
+1.	Add the Jenkins repo using the following command:
+2.	
+3.	[ec2-user ~]$ sudo wget -O /etc/yum.repos.d/jenkins.repo \  https://pkg.jenkins.io/redhat-stable/jenkins.repo
+
+
+1.	Import a key file from Jenkins-CI to enable installation from the package:
+
+2.	[ec2-user ~]$ sudo rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+
+3.	[ec2-user ~]$ sudo yum upgrade
+
+4.	Install Java:
+
+5.	[ec2-user ~]$ sudo yum install java-17-amazon-corretto -y
+
+6.	Install Jenkins:
+
+7.	[ec2-user ~]$ sudo yum install jenkins -y
+
+8.	Enable the Jenkins service to start at boot:
+
+9.	[ec2-user ~]$ sudo systemctl enable jenkins
+
+10.	Start Jenkins as a service:
+
+11.	[ec2-user ~]$ sudo systemctl start jenkins
+
+12.	You can check the status of the Jenkins service using the command:
+
+13.	[ec2-user ~]$ sudo systemctl status jenkins
+
+Jenkins is now installed and running on your EC2 instance. To configure Jenkins:
+
+Connect to 
+
+http://<your_server_public_DNS>:8080
+
+from your browser. You will be able to access Jenkins through its management interface
+
+To generate the password:
+
+[ec2-user ~]$ sudo cat /var/lib/jenkins/secrets/initialAdminPassword
