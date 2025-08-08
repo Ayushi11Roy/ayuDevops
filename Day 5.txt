@@ -1,0 +1,124 @@
+Day 5
+
+Jenkins url : http://3.236.179.182:8080/
+
+Build a java application using maven, and we'll use tomcat.
+
+Apache -> httpd
+Nginx
+Tomcat (developed in java)
+
+We'll need multiple plugins.
+
+Workflow:
+
+We'll need to deploy the source code in the container.
+
+---------------------------
+
+Source code (dev-server : EC2 instance) -> (push) on GitHub -> (integrate) with JENKINS (to automate) [Jenkins processes -> build, test, release]
+For java appl., we use maven
+So, we need to install git, maven, java.
+yum install git -y
+yum install maven -y
+yum install java -y
+
+We also need to install some plugins (they're types of utility/connectors)
+
+install plugin:
+maven  (to build the java based appl. Java based appl. comes under .var folder)
+deploy to container
+GitHub integration
+gradle 
+
+
+Now we create another EC@ instance: Tomcat
+
+- install java (yum install java)
+
+-------------------------------
+
+add maven plugin on Jenkins
+------------------------------
+
+
+CLEAN WORKFLOW:
+
+1. Connect instance, paste the key, connect.
+2. sudo su -
+- bash
+- install git using yum
+- make a new directory > git init on that directory > 
+- make a new repo on GitHub
+- copy the ssh url of that repo
+- on the terminal, cd to the directory you created (already switched if git init done)
+- add remote url using: git add remote origin <ssh url>
+- authenticate now using ssh-keygen and all that
+- clone the source code repo sir had (java-code-with-maven)
+- BUT clone in that directory you created using mkdir.
+- clone by copying the ssh key only.
+- git clone <ssh url>
+- git add .
+- git commit -m "."
+- git push origin master
+- NOW, if only the folder is showing and not the files, 
+- cd devops5
+  118  git remote -v
+  119  git remote set-url origin git@github.com:Ayushi11Roy/ayuDevOps5.git
+  120  git remote -v
+  121  git remote remove origin
+  122  ls
+  123  cd java-code-with-maven
+  124  rm -rf .git
+  125  git init
+  126  git remote add origin git@github.com:Ayushi11Roy/ayuDevOps5.git
+  127  git remote -v
+  128  git add .
+  129  git status
+  130  git commit -m "xyz"
+  131  git push origin master
+  132  git push origin master --force
+
+--- do these...the files should show. Like, explore and experiment with these. The basic thing is to remove the .git file in the java-and-maven folder and then again initializing it and adding it as remote.
+
+
+
+
+3. Do all those things
+4. Install Jenkins (on root using cd ~)
+5. install maven. See if maven is installed by using rpmquery maven.
+6. go to Jenkins settings > plugins > install maven, GitHub integration, deploy to container
+7. do 'mvn -v' on terminal
+8. Copy java path and maven path from there > go to Jenkins settings > tools > on java (jdk) section <Java_home> add the java path and on maven section at the very last add the maven path
+9. Next, create a job > Select maven project > build > pray build is successful
+10. Go to workspace 
+
+
+------------------------
+
+tomcat website  (https://tomcat.apache.org/download-90.cgi)
+.tar file in Linux (binary distribution > core > tar.gz)
+yum install wget
+wget <url you copied of the .tar file>
+tar -xvzf <name of the apache file>    (What is -xvzf : x : extract, v: verbosity, z: expand, f: force)
+
+
+---------------------
+
+Now we're doing it UI based, but we need to do it using declarative approach as well.
+
+------------------------------
+
+To set-up tomcat, open [https://medium.com/@raguyazhin/step-by-step-guide-to-install-apache-tomcat-on-amazon-linux-120748a151a9].
+
+But the "tomcatup" command may not run.
+
+So, before opening the url, do:
+
+cd ..  (we go from conf to apache name)
+ls
+cd bin
+ls
+ll
+Now we can see shutdown.sh and startup.sh files.
+Do: ./startup.sh

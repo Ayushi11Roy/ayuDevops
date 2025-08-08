@@ -1,0 +1,130 @@
+Version control
+
+	- History of version control
+	- SVC (Source code version control system)
+	- Bitkeeper
+	- Git
+	- Distributed and centralised version control system
+	- Git is distributed.
+	- Github - SaaS
+	- How to create git environment
+	
+--------------------------------
+
+Git setup
+
+	- 1st hostname should be set
+	- IP Address should be unique
+	- Linux should be installed
+	- Install Git ->  
+	yum install git -y
+	
+	- Git-server.example.com
+	- Ip add.
+	- We can ping the machine with the name as well as with ip address.
+	- Configure DNS address to ping with name. 
+	- /etc/hosts
+	- Yum install git -y
+	- Ssh communication
+
+For git initialisation after install,
+
+	Git init --bare
+	-   (the bare command tells the system that the computer where bare is installed acts as a kind of server)
+	- Primarily for Sharing and Collaboration (Remote Repositories): Bare repositories are primarily used as remote repositories on servers, acting as a central hub for multiple developers to push and pull changes. When you clone from GitHub or another hosting service, you're interacting with a bare repository on the server's end.
+	- ssh works on port 22. Works on fingerprint.
+	- Why we set up keys on cloud? Key-based-authentication
+	- Hostnamectl set-hostname gitserver
+	
+	---------------------------------------------
+	
+How to generate key?
+
+vim /etc/ssh/sshd_config
+password based authentication, if no, yes, in the above file
+then, the systemctl start ssh
+systemctl enable ssh
+ssh-copy-id root
+ssh-keygen
+---------------------------
+
+- Make 3 instances : 1 server, 2 developers (
+- make the key for all the instances same
+- check if status check is 2/2
+- Go to each instance one by one, click on connect, ssh client, copy the key. 
+- Go to terminal, then to the folder where the key file is downloaded. If it's downloads folder, then to downloads, by using [cd <folderpath>].
+- in the terminal, paste the key that was copied. For different instances, different keys.
+- then login as root by using ' sudo su - '
+- different terminals will have different root ids. Check that.
+- then set the hostname by using the command:
+
+hostnamectl set-hostname name.example
+
+- Then, use the 'bash' command. We use it because, at first, after logging in as root user, the id is shown. So, after using bash, the server name that we set, that will be shown. 
+Eg: Before bash: [root@ip-172-31-21-153 ~]
+After bash: [root@ayushiDeveloper1 ~]
+- Then install git by using 'yum install git -y'
+- Then initialize git. 
+Use git init --bare for the server, and simple git init for others.
+
+ip a s
+---------------------------------------------
+
+Basic thing is we need to establish connection among the instances using ssh.
+SCP copies data.....?
+
+--------------------------
+
+git commands like
+
+git clone
+git status
+git add
+git commit -m "..."
+git remote -v
+git remote add origin <user>
+git pull origin master
+The command sir wrote:
+
+git remote add origin root@[whatever no there is]
+git push origin main (or master)
+cd hooks/ (directory)
+Last commit of git always comes above.
+git log
+sudo apt-get install git
+git branch -M main
+-----------------------------------------
+
+always remember, ssh is used to connect, to integrate among different platforms.
+
+To connect different instances:
+
+1.  - Make 3 instances : 1 server, 2 developers (
+- make the key for all the instances same
+- check if status check is 2/2
+- Go to each instance one by one, click on connect, ssh client, copy the key. 
+- Go to terminal, then to the folder where the key file is downloaded. If it's downloads folder, then to downloads, by using [cd <folderpath>].
+- in the terminal, paste the key that was copied. For different instances, different keys.
+- then login as root by using ' sudo su - '
+- different terminals will have different root ids. Check that.
+- then set the hostname by using the command:
+
+hostnamectl set-hostname name.example
+
+- Then, use the 'bash' command. We use it because, at first, after logging in as root user, the id is shown. So, after using bash, the server name that we set, that will be shown.
+
+2. Then do ip a s
+3. then do vim /etc/hosts
+4. The hosts file opens. Press 'i' to insert lines. Paste the ip address that was copied, press tab, write the hostname that you had set. 
+Eg: <ip add>	ayudev
+Do it for all the instances.
+
+
+----------------------------
+
+git authenticate using ssh???
+GitHub ssh something
+
+-------------------------
+
+yum update -y
