@@ -260,7 +260,7 @@ WHAT IF WHEN JENKINS BECOME SLOW: (After restarting vm -- why?)
 
 
 * cd /var/lib/Jenkins
-* vim Jenkins.model.JenkinsLocationConfiguration.xml
+* vim jenkins.model.JenkinsLocationConfiguration.xml
 * The file that will open will contain the previous ip address. Copy-paste the new public ip address there. And save and exit.
 * systemctl start Jenkins
 * systemctl status jenkins
@@ -474,4 +474,5 @@ from your browser. You will be able to access Jenkins through its management int
 To generate the password:
 
 [ec2-user ~]$ sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+
 
