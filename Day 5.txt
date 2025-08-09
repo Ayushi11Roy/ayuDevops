@@ -121,4 +121,16 @@ cd bin
 ls
 ll
 Now we can see shutdown.sh and startup.sh files.
+
 Do: ./startup.sh
+
+Go to aws > tomcat instance that you had created > copy public ip > paste in browser > <ip>:8080
+--- If browser issue, open in chrome incognito
+
+In browser, on the tomcat page, open "manager app" > id password : admin admin respectively
+
+- If any problem occurs, we can restart tomcat.
+        cd <tomcat filename> -> cd bin -> ./shutdown.sh -> ./startup.sh
+
+- jenkins > open project/job > configure > build settings > add post build > deploy war/ear to a container > write (**/*.war) > context path > write (/) -- slash > save
+
