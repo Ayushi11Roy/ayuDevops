@@ -1,0 +1,43 @@
+Devops day -6 
+
+----------------------
+
+1. Create a user named Ramesh. Add him to nobody and wheel group.
+
+
+---->
+
+useradd Ramesh
+passwd Ramesh
+cat /etc/group | grep -i nobody  (We are checking if the group already exists. If group doesn't exist, use: groupadd <groupname> to create group)
+cat /etc/group | grep -i wheel
+usermod -G wheel Ramesh
+usermod -aG nobody Ramesh
+cat /etc/group | grep -i ramesh
+
+2. Create a user Deepak and password ltimindtree. Make Deepak the sudo (root) user, and give him permission so that he can add a user named jk.
+
+--->
+
+useradd Deepak
+passwd Deepak
+<Give password as ltimindtree>
+sudo visudo  (open this file) 
+-	You can also open vim /etc/sudoers
+
+then search for:
+root	ALL=(ALL)	ALL
+
+Underneath it, add:
+
+Deepak	ALL=(ALL)	/user/sbin/useradd
+
+<save and exit>
+
+Login as Deepak:
+
+sudo su - Deepak
+sudo useradd jk
+cat /etc/passwd | grep -i jk
+
+
