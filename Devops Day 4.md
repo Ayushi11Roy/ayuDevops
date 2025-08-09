@@ -433,7 +433,8 @@ Downloading and installing Jenkins
 
 1.	Add the Jenkins repo using the following command:
 2.	
-3.	[ec2-user ~]$ sudo wget -O /etc/yum.repos.d/jenkins.repo \  https://pkg.jenkins.io/redhat-stable/jenkins.repo
+3.	[ec2-user ~]$ sudo wget -O /etc/yum.repos.d/jenkins.repo \
+    https://pkg.jenkins.io/redhat-stable/jenkins.repo
 
 
 1.	Import a key file from Jenkins-CI to enable installation from the package:
@@ -473,3 +474,4 @@ from your browser. You will be able to access Jenkins through its management int
 To generate the password:
 
 [ec2-user ~]$ sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+
