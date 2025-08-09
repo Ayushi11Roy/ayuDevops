@@ -6,7 +6,7 @@ Devops day -6
 
 
 ---->
-
+Connect to instance > paste the key etc etc > sudo su - > hostnamectl set-hostname <name>.example > bash
 useradd Ramesh
 passwd Ramesh
 cat /etc/group | grep -i nobody  (We are checking if the group already exists. If group doesn't exist, use: groupadd <groupname> to create group)
@@ -39,5 +39,6 @@ Login as Deepak:
 sudo su - Deepak
 sudo useradd jk
 cat /etc/passwd | grep -i jk
+
 
 
