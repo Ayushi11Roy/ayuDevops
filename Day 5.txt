@@ -134,3 +134,7 @@ In browser, on the tomcat page, open "manager app" > id password : admin admin r
 
 - jenkins > open project/job > configure > build settings > add post build > deploy war/ear to a container > write (**/*.war) > context path > write (/) -- slash > save
 
+Manage jenkins > credentials > global > add credentials > username : deployer , password: deployer > create
+my project > configure > build settings > post build actions > add containers > tomat 9 > credentials > select deployer/******** > tomcat url > Paste <tomcat server ip>:8080/ > save
+
+Workspace > build now > check if working > github > edit files > commit > check in jenkins
