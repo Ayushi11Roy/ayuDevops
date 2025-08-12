@@ -1,0 +1,253 @@
+Devops day -7 - Monday
+
+(AWS - Cloud Computing)
+
+-----------------------
+
+Board: NIST
+Ip address: IANA
+
+---------------------
+
+Cloud computing is a collection of the resources that are hosted somewhere which we can access over anywhere at any point of time as per the demand. We need network connectivity.
+
+Entire cloud computing is based on hypervisor (virtualization) and networking.
+
+We can access resources as pay-as-you-go. Cloud works remotely.
+
+- CAPEX :- CAPITAL EXPENDITURE
+- INFRA
+
+Cloud Computing Benefits:
+
+- OPEX
+- COST
+- SCALE (best feature) - we can increase or decrease our hardware resources at any point of time.
+	Two types of scaling:
+		1. Vertical Scaling
+		2. Horizontal scaling
+- TIME
+- UPKEEP
+
+Data center is a collection of resources.
+
+GitOps
+ - ArgoCD
+
+Autoscaling...? / dynamic scaling
+Manual scaling
+Scheduled scaling
+
+SLA - Service Level Agreement
+
+Cloud Computing types:
+
+1. IaaS (Eg: VPC, EC2, Storage)
+2. PaaS (Eg: ECS, EKS, Elastic Bean)
+3. SaaS (Eg: Gmail, Salesforce, MS365 etc)
+4. FaaS and many more
+
+Cloud Models:
+
+1. Public
+2. Private
+3. Hybrid
+
+Default network of aws: VPC (Do not use default vpc in prod env. Use custom vpc)
+
+Custom VPC network helps to isolate resources, so that diiff organisations using same public cloud can't access each other's resources. That is, VPC segregates the resources.
+
+Hybrid Concept: (Private-public , public-public):
+
+AWS -> IPSEC (vpn) -> ON-PREM (private - when complete resources and appl available locally)
+
+- To configure private cloud, we use OpenStack (product of redhat).
+
+-------------------------------------------
+
+AWS INFRASTRUCTURE:
+
+- AWS has 117 Availability zone (AZ-1a, 1b, 1c) and 37 regions. (North Virginia is the pilot region {code: us-east-1} for Amazon.
+- What if one region crashes? If there is SLA, another region is provided.
+
+Certifications:
+
+1. AWS cloud practitioner
+2. AWS Sysops
+3. AWS Cloud Architect
+
+EC2: Elastic Compute Cloud
+Security group always inherit EC2 Lancard
+Ports, key-pairs: different types of securities
+
+How does an EC2 instance work?
+How do resources like t2.micro etc work?
+
+- Hypervisor creates an isolation between the virtual machine and the local.
+- VMs are separate machines that do not communicate with anyone (unless specified?)
+
+What is the 2/2 check?
+
+- The drive where there is the OS, is called root-volume. By default, of aws, when an instance is terminated, root-volume will crash. So, we need to create a custom AMI.
+
+-----------------------------------------------
+
+
+[ec2-user@ip-172-31-6-213 ~]$ sudo cat /etc/group | grep -i ec2-user
+adm:x:4:ec2-user
+wheel:x:10:ec2-user
+systemd-journal:x:190:ec2-user
+ec2-user:x:1000:
+
+-- We can see that the ec2 user is a member of the wheel group. By default, every user is part of a primary group.
+
+[root@ip-172-31-6-213 ~]# hostnamectl set-hostname ayu-server.example.com
+[root@ip-172-31-6-213 ~]# bash 
+	-- why do we use 'bash' aftr setting hostname? (Because we want the host-name that we set to be reflected.)
+
+yum install httpd -y
+rpmquery httpd
+make the file inside cd /var/www/html folder
+cat > index.html
+yum install vsftpd -y
+yum install cifs-utils
+yum install nfs-utils
+yum install tree
+cat > test.txt
+ll
+cat test.txt
+cat index.html
+useradd jk
+passwd jk
+
+<Copy instance public ip address>:80 and paste it on edge. If it doesn't work, do <Systemctl restart httpd>
+
+systemctl enable httpd
+systemctl start httpd
+systemctl restart httpd
+
+-------------------
+
+EC2 -> Images -> AMI, AMI CATALOG
+
+1st shut your server, then create AMI. 
+
+Your instance -> Actions -> Images and templates -> Create image
+
+Now, terminate instance you created.
+
+Launch instance -> all amis -> My ami -> Select ami you created. -> select the other settings -> create instance
+
+How can i migrate one server from one region to another region?
+- AWS doesn't allow us to migrate hardwares.
+
+To copy ami -> AMI -> Actions -> Copy ami -> select region you want to copy to...maybe ohio
+
+---------------------
+
+To open the ami you created on cloud shell,
+
+1st upload the key.pem file by going to actions -> upload file.
+Then, set permissions: chmod 400 key.pem
+ssh -i "ayu-key.pem" ec2-user@ec2-3-238-14-33.compute-1.amazonaws.com
+^^ logging in as ec20user and not as root.
+sudo su -
+set hostname, as usual.
+
+
+=====================================================
+
+CLEAN COPY:
+
+1. Create an instance
+2. Connect, log in as root (sudo su -)
+3. Set hostname, bash
+4. yum install httpd -y
+5. rpmquery httpd
+6. make the file inside cd /var/www/html folder
+7. cat > index.html
+8. yum install vsftpd -y
+9. yum install cifs-utils
+10. yum install nfs-utils
+11. yum install tree
+12. cat > test.txt
+13. ll
+14. cat test.txt
+15. cat index.html
+16. useradd jk
+17. passwd jk
+
+18. <Copy instance public ip address>:80 and paste it on edge. If it doesn't work, do <Systemctl restart httpd>
+
+19. systemctl enable httpd
+20. systemctl start httpd
+21. systemctl restart httpd
+
+22. You can find AMI at, EC2 -> Images -> AMI, AMI CATALOG
+23. Your instance -> Actions -> Images and templates -> Create image
+24. You can create instance from the AMI page and there is an option as launch instance from ami, or you can also create instance from the regular "Launch instance":
+	Launch instance -> all amis -> My ami -> Select ami you created. -> 	select the other settings -> create instance
+
+25. To copy ami -> AMI -> Actions -> Copy ami -> select region you want to copy to...maybe ohio -> save  (This is cross-region copying)
+26. To do cross-account copying: 
+	- Go to AMI -> Actions -> "Edit AMI Permission" page will open. 
+	- Shared accounts -> add account ID -> (Add the account ID of the person 	you want to share to, ie, destination account)
+	- Share AMI > Save
+27. The shared AMI will show up under the destination person's AMI list.
+28. That person can again copy that shared AMI.
+29. To revoke permission, go to AMI -> Actions -> Deregister.
+30. But the one that that person had copied won't be deleted.
+
+==================================================
+
+EC2 TEMPLATE:
+
+EC2 -> Instances -> Launch Template 
+To modify template :- Actions -> Modify template -> volume (Device name : sdb)
+Spot request / Spot instance (Instances that amazon doesn't us. There is bidding on it)
+
+Reserved Instance:
+
+Tenacy -> Default, platform -> Linux, Offering class -> Standard, Instance type: t2.micro, term -> 1 month to 12 months, payment option -> no upfront -> Search
+
+Dedicated Host
+
+SAN (STORAGE AREA NETWORK): In San, we have block devices: SSD, HDD
+Why do we call them block devices? (Data is stored in blocked devices)
+
+
+----------------------------
+
+Volumes ->
+
+EC2 -> Volumes -> create volume -> 
+- Volume type : gp2
+- size: 5 GB
+- Save
+
+Select the volume you created -> actions -> attach volume -> do the steps (select the instance, select device name as sdb) and save.
+
+Then, go to terminal, connect instance if not connected, login as root, and do the below steps: 
+To attach the volume with the instance, these are the steps:
+
+lsblk
+blkid
+lsblk -fs (lists only volumes which have filesystem)
+mkfs.ext4 /dev/xvdb
+mkdir /data
+mount /dev/xvdb /data/
+df -h
+cd /data/
+touch test.txt{1..100}
+ls
+blkid (to get uuid) (Copy the uuid from UUID ="...")
+vim /etc/fstab
+->	/dev/xvdb	/dev	ext4	defaults	0 0
+Or just write the:
+->	<Copied UUID>	/dev	ext4	defaults	0 0
+
+
+--------------
+
+Now, this system has 5GB data, and it should be available in same region but different zone.
+
