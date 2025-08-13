@@ -1,0 +1,237 @@
+AWS S3 (Simple Storage Service)
+
+Websites: Mountpoint aws s3
+https://www.c-sharpcorner.com/article/how-to-allow-an-ec2-instance-access-to-an-s3-bucket/
+
+- In a free-tier account, we can create 100 buckets.
+- S3 -> object storage
+Fastest access of data: EBS > EFS > S3
+
+- S3 uses flag file-system.
+- They charge on behalf of the size of the data.
+- If there's any data in the bucket and we're deleting it, data will be deleted and not the bucket.
+- Bucket (or maybe S3) is a global service.
+
+==================
+
+S3 -> Create bucket ->give unique name -> enable versioning -> uncheck block all public access and check the warning that comes -> create bucket
+
+upload some file and photos or anything to the bucket by selecting the bucket -> upload
+
+Accessing the objects (files uploaded):
+
+Go to the file you want to access -> Copy object url -> 
+
+Bucket -> Permission -> If "Edit" option is greyed out, enable some permission to show it highlighted. (Need to see how)
+
+Also give permission to the specific file.
+Permissions -> Edit -> Check "Read" for everyone -> save
+
+What if i mistakenly delete a file, how to retrieve it?
+- Only if versioning is enabled, then we can retain. So, while creating S3 bucket, always enable versioning.
+
+- We can also enable versioning by going to 
+Properties -> Versioning -> Enable
+
+- Once bucket is enabled, it can never be disabled. Only after deleting the bucket, it can be disabled.
+
+- So, after enabling versioning, we go to the files -> show versions -> delete marker and below that we have a link -> Go to the link -> We can download it again.
+
+
+================================
+
+
+REAL PROD ENV:
+
+[We don't get s3 console access. We ned to mount the s3 on terminal. We can get same cloud as well as different cloud access through that.]
+
+Same cloud access:
+
+We will connect using public endpoint.
+
+1st create a bucket, add some files or whatever (give acl access)
+connect instance, sudo su - , set-hostname, bash
+
+yum update -y
+
+sudo yum install automake fuse fuse-devel gcc-c++ git libcurl-devel libxml2-devel make pkg-config
+
+git clone https://github.com/s3fs-fuse/s3fs-fuse.git
+ll
+cd s3fs-fuse/
+./autogen.sh
+ll
+./configure --prefix=/usr --with-openssl
+make
+make install
+which s3fs
+
+
+AWS -> IAM -> Create user -> Attach policies directly ->
+s3full -> Next
+Create user
+
+Create access key -> CLI -> I understand -> next -> Download csv file on local
+To create access key -> Go to the user you created from IAM -> Security -> create access key
+
+Then, create a file with same name:
+
+touch /etc/passwd-s3fs
+ll -d /etc/passwd-s3fs
+vim /etc/passwd-s3fs
+
+
+Access key - username, secret key- password
+
+In the vim /etc/passwd-s3fs file, 
+write only the values of access key and secret key in the format:
+{access key}:{secret key}
+sudo chmod 640 /etc/passwd-s3fs
+
+
+#Mount
+
+s3fs <bucket name> /mnt -o passwd_file=/etc/passwd-s3fs    (/mnt is the name of the directory. Give the name of the directory you created there, if /mnt is not available. 
+For eg, you can create mkdir /data)
+
+Adding a file:
+
+cd /mnt
+touch test.txt
+
+--this file should reflect on the bucket created in the console as well.
+
+[that will should be 
+
+===============================================
+
+Anothr method: (doing it via aws cli)
+
+Create redhat based instance
+Websites: Mountpoint aws s3
+
+Create iam user, their access key with appropriate permissions.
+
+cat /etc/os-release
+rpmquery mount-s3
+uname -r
+yum install wget -y
+wget https://s3.amazonaws.com/mountpoint-s3-release/latest/x86_64/mount-s3.rpm
+ll
+yum install ./mount-s3.rpm
+yum install unzip -y
+{Paste command to install aws-cli (from aws-cli documentation) ->}
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+l.
+ls -a
+cd aws
+ll
+cd
+aws configure -> share access key -> secret key -> region: us-east-1 (or whatever rgion we're working in -> Output: Table
+cd aws
+ll
+cd
+ls -a
+cd .aws/
+ll
+cat config
+cat credentials
+cd
+mkdir /devops (creating a mountpoint)
+mount-s3 <bucket name> /devops/ (folder name)
+df -h
+cd /devops/
+ll
+cd
+
+==================
+
+For windows instance:
+
+Take a slightly large instance like t3.medium or something.
+Allow port rdp.
+Go to rdp client -> download rdp file -> get password -> upload private key -> connect
+
+We'll download "Windows tnt drive"
+
+Windows server will launch.
+Internet explorer -> download tnt drive -> run -> next -> install as usual 
+
+Open tnt drive -> Add new account -> account name give -> Give access and secret key -> save -> add new drive
+
+Go to the drive and there you can see the files created earlier. Add a new file, and that file should be available on bucket aws console as well.
+
+=========================
+
+HOSTING STATIC WEBSITE USING S3:
+
+Make an indx.html file on local (not terminal) -> create bucket -> upload that .html file
+
+Edit static website -> enable -> have to make something public-> There will be a url -> copy that url and if everything's alright, the website should show 
+
+============================================
+
+CRR (another feature of S3):
+
+- asynchronous replication
+- versioning should be enabled in both the regions
+
+CDN (Content delivery network):
+
+=========================================
+
+LOADBALANCER
+
+(Cross-zone load balancer)
+
+- for cross-region load balancing, we need to do global acceleration. (Global load-balancer)
+
+Types of load-balancer:
+
+1. application load-balancer
+2. classic load-balancer
+3. Network load-balancer
+4. Gateway load-balancer
+
+path based routing
+- Load-balancer creates a target group (TG) in the backend, and inside TG there is a pool (collection of servers)
+
+--------------
+
+lab (Load balancer)
+
+1. Create 4 instances of different zones.
+2. connect the instances, install apache, ie, yum install httpd -y.
+3. systemctl start httpd
+4. systemctl enable httpd
+5. cd /var/www/html
+6. cat > index.html (Write diff things in each server instance!), ctrl + D
+7. <public url>:80
+
+
+Now, (always make target group 1st)
+
+Target group -> instances -> name -> http1 -> advanced health check -> traffic port -> healthy threshold: 5 -> unhealthy threshold: 2 -> timeout: 5 -> interval: 30 -> success code: 200 -> next -> select machines and include pending machine -> create target
+
+Load balancing -> create load balancing -> Application LB -> name -> internet facing -> ipv4 -> select the zones you created the servers in
+Security group -> attach the one where port 80 was allowed -> select the target group you created -> create load balancer
+
+Copy the DNS url, and paste it on browser.
+
+Now, if we stop a server, 502 bad gateway will be shown on that server, but the load will be balanced on other servers. And in target group, that server will be shown as unhealthy.
+
+Enabling session stickiness:
+
+Target group -> Attribute -> Target selection configuration 
+
+================================================
+
+
+AUTOSCALING LOAD-BALANCER:
+
+1st go to launch template -> create template -> select all the zones you want to create instances in -> save
+
+Create target group -> create load balancer -> create auto-scaling group -> select the apt things, select min and max instances as 2 and 6 resp, and in the health-check section, select EBS option as well -> create it
+Go to instances -> reload -> new instances should show.
