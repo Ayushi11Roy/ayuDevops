@@ -1,0 +1,177 @@
+VPC: (region-based service)
+
+
+- Custom VPC (v imp)
+
+- Default vpc
+
+
+VPC Architecture:
+
+vpc
+	- public sub -> <- ec2  (Security grp is between the subnet and ec2)
+	- private sub -> <- ec2 
+
+
+	- IGW 
+		- public endpoint
+		- private endpoint  (connect to the internet)
+
+Why do we run the ssh -i command?
+
+CIDR
+
+Internally all ec2 or vpc can communicate with each other.
+
+Public ip should ethically be within igw, but aws will not let us access that So, the public ip is mapped with ec2.
+
+We can change the public ip, but never change private ip, because that means compromising the ec2 instance.
+
+By default, in outbound, all traffic is allowed.
+
+Advanced level security is NACL.
+How does nacl work? 
+
+More security if we want to add: WEF (content-based security)
+
+======================================
+
+LAB:
+
+search vpc on aws console -> 
+
+
+Workflow:
+
+V -> VPC -> give cidr (10.0.0.0
+I -> IGW
+S -> SUBNET -> 2 -> 1 public and 1 private (those that are not to be exposed on the internet, like the database)
+R -> ROUTE TABLE
+
+- vlsm calculator for subnetting
+
+give range:
+ip: 10.0.0.0 / 16
+subnets: 2
+Subnet names: 1, no of hosts: 250
+	     2                150
+
+usused hosts: 4-  1 for broadcast, 1 for dns, 1 for public hosting, 1 for ???
+
+VPC -> Create vpc - > vpc settings -> vpc only -> ipv4 -> no ipv6 cidr block
+
+Internet gateway -> Create igw -> name -> create
+
+Subnet -> vpc u created -> subnt name: public subnet -> cidr range: 10.0.0.0/16  (16 is the range)
+Next range: 10.0.0.0/24
+
+zones different.
+Create 2 subnets: 1 public, 1 private
+
+Next, create ec2 instance -> select the vpc you created -> enable public ip -> create security group (2 instances, one web-server, one database-server)
+
+
+IGW -> SELECT IGW -> ATTACH TO VPC
+
+create route table -> name -> save -> edit route -> add route -> save
+
+
+vim <key-name>.pem
+paste the key copied
+chmod 400 <key-name>.pem
+ssh -i <key-name>.pem .......
+
+yum install mariadb 
+
+NAT gateway (internet connects with help of NAT gateway. One endpoint will be connected to public and the other with private.)
+
+Create Nat gateway -> attach to PUBLIC 
+Create route table (private) -> edit route -> add route -> nat gateway 
+Edit subnet association -> private -> save
+ping google.com
+
+
+
+===============================
+
+VPC ->
+
+Create vpc -> vpc only -> give name -> slect ipv4 cidr -> ipv4 cidr: 10.0.0.0/16 -> no ipv6 cidr block -> create
+
+INTRNET GATEWAY ->
+
+create igw -> give name -> create
+select igw -> actions -> attach to vpc -> select the vpc you created -> attach
+
+Go to vlsm calculator ->
+
+ip: 10.0.0.0 / 16
+Subnets : 2 -> apply
+
+Subnet names: 1 	No of hosts: 250
+Subnet names: 2 	No of hosts: 150
+Generate
+
+Subnets -> create 2 subnets , 1 public and 1 private
+
+SUBNET (2 subnets: 1 public, 1 private) (get the ip range from vlsm calc)
+
+EC2 INSTANCE (create security grp, add ports: http, ssh, icmp ipv4) ->
+
+2 instances: web-server (public), db-server (private)
+
+network -> select the vpc you created -> select public subnet (for public instance)
+
+While creating the private subnet, 
+
+select private subnet in network -> select existing security group -> select the security group you had created while making the public subnet. 
+
+Create route table for public subnet
+Elastic ip -> create > select the created one -> actions -> associate elastic ip address -> select the instance -> associate (do not select private ip address) -> associate
+
+Create route table -> name -> create -> edit route -> add route -> 0.0.0.0/0 -> igw -> select the igw -> create
+
+Subnet association -> edit subnet association -> create public -> save association
+
+ec2 instance -> web-server -> connect, copy and paste the ssh -i key to terminal, it should connect.
+ 
+Subnets -> public subnet 
+Connect the public instance with terminal 
+
+
+
+=========================================
+
+Mapping ohio vpc with virginia vpc: (sending data from virginia to ohio and vice-versa through the internet)
+
+- do the previous process in both the regions. But, for north virginia, give cidr 10, and for ohio, give cidr 20.
+- in virginia, make 2 route tables - one public and one private - connect both to igw (in the previous one, we connected public to igw, private to nat), same in ohio
+
+
+
+Make a file in virginia.
+
+cat > devops.txt
+ll
+scp devops.txt root@<public ip of ohio server>/tmp
+ssh-keygen
+cd .ssh
+cat id_rsa.pub
+
+In ohio server:
+
+vim /etc/ssh/sshd_config
+systemctl start sshd
+systemctl enable sshd
+cat /etc/os-release
+cd .ssh/
+vim authorized_keys
+cd /tmp
+
+
+
+-------------------------
+
+VPC peering
+
+VPC -> Peering connection -> name (virginia-to-ohio) -> requestor -> select another vpc ->
