@@ -1,0 +1,272 @@
+1. deploying instance as usual. (connect, ssh -i, hostname, bash)
+Web-server:
+
+yum install httpd -y
+rpmquery httpd
+make the file inside cd /var/www/html folder
+cat > index.html
+ls
+cat index.html
+
+<Add http port on security grp > inbound rules>
+
+systemctl enable httpd
+systemctl start httpd
+
+To make the web server live, on edge
+<copy public ip address>:80 and paste.
+
+To attach a volume,
+
+
+Volumes ->
+
+EC2 -> Volumes -> create volume -> 
+- Volume type : gp2
+- size: 5 GB
+- Save
+
+Select the volume you created -> actions -> attach volume -> do the steps (select the instance, select device name as sdb) and save.
+
+Then on terminal, 
+
+lsblk
+blkid
+lsblk -fs
+mkfs.ext4 /dev/xvdb (xvdb is the disk name)
+mkdir /data
+mount /dev/xvdb /data/
+df -h
+cd /data/
+touch <filename>.txt{1..10}
+ls
+blkid (get the uuid, and ccopy the uuid from UUID="...")
+
+To make permanent ->
+
+vim /etc/fstab
+	-> <copid uuid>	/data	ext4	defaults	0 0
+
+df -h
+
+To see if it's permanent,
+
+	sudo reboot
+	df -h
+
+To remove volume,
+
+	- umount /data (/data is the dir where the volume is mounted)
+	- select volume in aws -> actions -> detach -> delete
+
+===========================================
+
+2. 
+
+In N.Virginia,
+
+- create ec2 instance
+- create volume -> attach volume to instance
+- mount volume -> add some files in a home dir -> make it perma in vim /etc/fstab
+
+	lsblk
+	blkid
+	lsblk -fs
+	mkfs.ext4 /dev/xvdb (xvdb is the disk name)
+	mkdir /data
+	mount /dev/xvdb /data/
+	df -h
+	cd /data/
+	touch <filename>.txt{1..10}
+	ls
+	blkid (get the uuid, and ccopy the uuid from UUID="...")
+
+	To make permanent ->
+
+	vim /etc/fstab
+		-> <copid uuid>	/data	ext4	defaults	0 0
+
+	df -h
+
+- create snapshot from vol
+
+	
+
+- copy the snapshot in Ohio region
+
+- Go to Ohio
+- In Ohio, create a vol from the copied snapshot
+- create an instance in ohio
+- attach the vol to the instance
+- mount the volume
+	
+	lsblk
+	mkdir /mnt/data
+	mount /dev/xvdb /mnt/data/
+	df -h
+	cd /mnt/data/
+
+- access the data by going to the folder
+	ls
+- to make it permanent,
+	vim /etc/fstab
+		-> <copid uuid>	/mnt/data	ext4	defaults	0 0
+
+	df -h
+==============================================
+
+3.
+
+To copy one server from one region to another, copy ami.
+
+1. Create instance
+2. Connect the instance to the terminal -> mkdir <folder> -> create a file
+3. Make an AMI from the instance
+4. Copy that AMI -> select ohio -> go to ohio -> AMI -> we can see the AMI there
+5. Create an instance from that AMI -> connect the instance -> cd <folder you created in the prev region> -> ls (The files should show)
+
+==================================================
+
+4. EFS:
+
+- Make 3 instances: aws, redhat, ubuntu (IN DIFFERENT ZONES, eg: us-east-1a, us-east-1b, us-east-1c resp)
+- Same security group in all three.
+- In security grp -> inbound rules -> add port NFS - 0.0.0.0/0
+- Open all three terminals:
+	- aws Linux:
+		- sudo su -
+		- rpmquery nfs-utils (in aws nfs is already installed)
+		- systemctl start nfs-server.service
+		- systemctl status nfs-server.service
+
+	- RedHat:
+		- sudo su -
+		- yum install nfs-utils -y
+		- systemctl start nfs-utils.service
+		- systemctl status nfs-utils.service
+
+	- Ubuntu:
+		- sudo su -
+		- apt update
+		- apt install nfs-common
+		- systemctl start nfs-utils.service
+		- systemctl status nfs-utils.service
+
+- Search efs in aws -> create file system
+- Create file system -> give name -> vpc -> default -> create
+- Select that file system -> view details -> network -> manage -> whichever zones' instances you took, in that zone add the security group that is used in those instances (security group must have nfs port 2049 enabled)
+- Attach -> mount via dns -> copy link under <using nfs client>
+- mkdir /dirname -> make dir in all three vms
+- paste that link in all terminals -> at the last of the link /efs is written, replace efs with /dirname 
+- in one vm, inside that /dirname, make a file -> go to the other vms -> cd /dirname -> ls -> the files created should be available there.
+
+================================================
+
+5. 
+
+VPC:
+
+V-I-S-R
+
+VPC ->
+
+Create vpc -> vpc only -> give name -> slect ipv4 cidr -> ipv4 cidr: 10.0.0.0/16 -> no ipv6 cidr block -> create
+
+INTERNET GATEWAY ->
+
+create igw -> give name -> create
+select igw -> actions -> attach to vpc -> select the vpc you created -> attach
+
+Go to vlsm calculator ->
+
+ip: 10.0.0.0 / 16
+Subnets : 2 -> apply
+
+Subnet names: 1 	No of hosts: 250
+Subnet names: 2 	No of hosts: 150
+Generate
+
+SUBNET -> create 2 subnets , 1 public and 1 private
+
+Create subnet -> 
+
+Public:
+
+select vpc you created -> subnet settings -> give subnet name (public-sub) -> availability zone (different zones for public and private subnets) -> give the cidr: 10.0.0.0/24 (for public) -> create
+
+Private:
+
+create subnet -> select vpc you created -> subnet settings -> give subnet name (private-sub) - availability zone (select a different one from the public sub) -> give the cidr: 10.0.1.0/24 -> create
+
+
+
+ROUTE TABLE:
+
+Create route table -> give name (public-rt, for public) -> select vpc (the vpc you created) -> create route table
+
+Edit route -> Add route -> destination: 0.0.0.0/0 , Target: igw (select the igw you created)
+
+Subnet association -> select the public-sub -> save association
+
+
+INSTANCE:
+
+Launch instance -> name: web-server (public) -> add key etc -> network settings -> edit -> vpc : select the vpc you created -> subnet : public-subnet -> auto-assign public ip: enable
+
+Create security group -> give name (ayu-sec) -> add security group rule -> add ports: http, all icmp - ipv4 -> gp2 -> launch instance
+
+For private instance (db-server) -> select private subnet -> auto-assign: disable -> select existing security group -> select the security group you created earlier
+
+- Connect the public instance with terminal
+
+>>> To show that db-server is not accessible 
+
+Just connect the private instance using ssh -i through the public instance's terminal, and access denied will be shown.
+
+>>> To actually connect the db-server through the web-server:
+
+Copy the key from the <key>.pem file
+
+In terminal:
+
+- vim <key>.pem
+
+paste the key, esc, save (:wq!)
+
+- chmod 400 <key>.pem
+
+Connect.
+
+To enable internet access:
+
+- Create NAT Gateway (select "public" subnet)
+- Create route table 
+
+Create route table -> give name (private-rt, for private) -> select vpc (the vpc you created) -> create route table
+
+Edit route -> Add route -> destination: 0.0.0.0/0 , Target: nat gateway (select the nat gateway you created)
+
+Subnet association -> select the private-sub -> save association
+
+- in terminal: ping google.com
+
+======================================
+
+6. 
+
+VPC PEERING:
+
+- Create vpc, subnet (public), instance (public), igw, route table in North Virginia and in Ohio. For NV, 10.0.0.0, for Ohio, 20.0.0.0
+
+- In ohio, Search Peering connection -> Create peering connection -> different region -> select virginia (when creating from Ohio) -> in vpc id (acceptor): paste Virginia's vpc
+
+- in North Virginia, search peering connection -> select the peering connection -> actions -> accept request
+
+- in NV's route table, edit route -> 20.0.0.0/16 (destination) -> Peering connection (Target) -> select peering connection from dropdown
+
+- In Ohio's route table -> edit route -> 10.0.0.0/16 (destination) -> peering connection (Target) -> select peering connection from dropdown
+
+- Connect the public instance of both NV and Ohio with the terminal ->
+
+- in North Virginia's instance -> ping <private ip of Ohio>
+- In Ohio's instance -> ping <private ip of NV>
