@@ -1,0 +1,1357 @@
+TERRAFORM LABS:
+
+-------------------------------------
+
+-----
+1. Create EC2 instance via Terraform:
+-----
+
+- 1st make a normal EC2 instance via console
+- Make IAM user -> give (AdministratorAccess) -> generate access key
+- Install awscli (pre-installed in Amazon Linux)
+- aws configure (this is to process resources in terraform via aws cli)
+- Install terraform:
+	- sudo yum install -y yum-utils
+	- sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
+	- sudo yum -y install terraform
+	- terraform -v
+- mkdir /terracode (give any name)
+- cd /terracode
+- nano provider.tf (can be any name like main.tf or anything)
+
+Inside the file:
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+resource "aws_instance" "ayu-server" {
+  ami = "image id"
+  instance_type = "t2.micro"
+  tags = {
+  Name = "India-server"
+  }
+}
+
+-----------------------------------
+
+2. Create ec2 instance with ebs vol attached:
+
+provider "aws" {
+  region     = "us-east-1"
+}
+
+#security group
+resource "aws_security_group" "webserver_access" {
+        name = "webserver_access"
+        description = "allow ssh and http"
+
+        ingress {
+                from_port = 80
+                to_port = 80
+                protocol = "tcp"
+                cidr_blocks = ["0.0.0.0/0"]
+        }
+
+        ingress {
+                from_port = 22
+                to_port = 22
+                protocol = "tcp"
+                cidr_blocks = ["0.0.0.0/0"]
+        }
+
+        egress {
+                from_port = 0
+                to_port = 0
+                protocol = "-1"
+                cidr_blocks = ["0.0.0.0/0"]
+        }
+
+
+}
+#security group end here
+
+#create block storage
+resource "aws_ebs_volume" "data_vol" {
+        availability_zone = "us-east-1a"
+        size = 5
+}
+
+resource "aws_volume_attachment" "ourfirst-vol" {
+        device_name = "/dev/sdc"
+        volume_id = "${aws_ebs_volume.data_vol.id}"
+        instance_id = "${aws_instance.ourfirst.id}"
+}
+
+#block storage end here
+resource "aws_instance" "ourfirst" {
+  ami           = "ami-0447a12f28fddb066"
+  availability_zone = "us-east-1a"
+  instance_type = "t2.micro"
+  security_groups = ["${aws_security_group.webserver_access.name}"]
+  key_name = "terrakey" #give the key name of the key of the instance created
+  tags = {
+    Name  = "hello-terraform"
+    Stage = "testing"
+    Location = "USA"
+  }
+
+}
+
+/*
+now run
+terraform validate
+terraform plan
+terraform apply
+Then...
+ssh into the instance and check the block device
+using "lsblk" command
+When done ... destroy using
+terraform destroy
+*/
+
+
+------------------------------------
+
+3. EC2 with existing security group
+
+-----
+
+data "aws_security_group" "previous-sg" {
+  id = "sg-00d3fef0da335dd67" #provide the existing security group id
+}
+
+#code for elastic ip
+resource "aws_eip" "ayu-eip" {
+  instance = aws_instance.ayu-server.id
+}
+#inject my ssh-key
+resource "aws_key_pair" "terra_key" {
+  key_name   = "terra.key"
+  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDnFt9J/jBRWAc0lmk3zkqKcurnzl0zKZBq6bfjdRUpE90dzvkWIkaNmpe8Tqdeu/B6YUyTQHBAftgEXwKjCTPLxOIcEvYj2RsMoKAzDT8ti+eWHg5WMXDhdz4Gq4Y5gdUWTOyXFr7hbV0NSD/LO+YRakc85RTwNxomiM4mwyCsUO5XixHg8P6S9LwehefoBKN/psDCcKJU/Hx0wrJvhQBuYf3YdpCM5iW4uVztIgUd4VKn4OWwexEXJdizGhAI4ooFRjVyStGmba9oj8H75hhoSLoungaiU8xJX/4bW9FQrrqcEDP0rM+YLcknYulrYkI66PPL0TUaToeVOJosGmC6Njl3Hs3MoYAds0u2uG9AYjf5YLTEl5jiAK5Qb/kEcPsaC3bxeEHSCWcGkc+6FFXoVmF2yiMB5lsRpL04unGuFALbltkW0Oh3Wvp7QAHj87cE8COuArD5f2Oc6zBURF4DnP1ASKbJh1dsY6nmPhNchrvjCcIEXlNihJyQWpXThqk= root@terra.example.com"
+} 
+
+resource "aws_instance" "ayu-server" {
+  ami                     = "ami-0e97ea97a2f374e3d"
+  availability_zone       = "us-east-1a"
+  instance_type           = "t2.micro"
+  key_name                = "terra.key"
+  vpc_security_group_ids = [data.aws_security_group.previous-sg.id]
+  /* First of generate ssh key and share public ssh key with AWS 
+   and you can execute code*/
+
+#root disk
+root_block_device {
+  volume_size           = "25"
+  volume_type           = "gp2"
+  delete_on_termination = true
+}
+
+#additional data disk
+ebs_block_device {
+  device_name           = "/dev/xvdb"
+  volume_size           = "10"
+  volume_type           = "gp2"
+  delete_on_termination = true
+}
+
+user_data = <<-EOF
+        #!/bin/bash
+        sudo yum install httpd -y
+        sudo systemctl start httpd
+        sudo systemctl enable httpd
+        echo "<h1>sample webserver using terraform</h1>" | sudo tee /var/www/html/index.html
+  EOF
+
+tags = {
+  Name     = "hello-India"
+  Stage    = "testing"
+  Location = "India"
+ }        
+
+
+-----------------------------------
+
+4. EC2 Instance with SSH key
+--------
+
+# First create ssh keys in current directory using
+# ssh-keygen -f terraform_ec2_key
+# This will create two files in current directory
+# 1. terraform_ec2_key
+# 2. terraform_ec2_key.pub
+
+# Now create instance which will use these keys
+### vim instance-with-ssh-keys.tf ####
+
+provider "aws" {
+  region     = "us-east-1"
+}
+
+
+resource "aws_instance" "Test-Server" {
+  ami           = "ami-0447a12f28fddb066"
+  instance_type = "t2.micro"
+  key_name = "terraform_ec2_key"
+}
+
+resource "aws_key_pair" "terraform_ec2_key" {
+	key_name = "terraform_ec2_key"
+	public_key = "${file("terraform_ec2_key.pub")}"
+}
+
+#### file ends here ####
+# terraform validate
+# terraform plan
+# terraform apply
+# Once the ec2 instance is created, go to aws dashboard
+# copy the ssh command (remove .pem) 
+# ssh -i "terraform_ec2_key" ec2-user@your-ip-address
+# 
+# finally destroy everything
+# terraform destroy
+
+-------------------------------------
+
+5. Multiple EC2 Instances: 
+------------
+
+(With loop)
+
+--------
+
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+
+resource "aws_instance" "my-instance" {
+  count         = var.instance_count
+  ami           = lookup(var.ami,var.aws_region)
+  instance_type = var.instance_type
+  key_name      = "zoomkey"
+
+  tags = {
+    Name  = "Terraform-${count.index + 1}"
+    Batch = "5AM"
+  }
+}
+
+
+variable "ami" {
+  type = map
+
+  default = {
+    "us-east-1" = "ami-087c17d1fe0178315"
+  }
+}
+
+variable "instance_count" {
+  default = "3"
+}
+
+variable "instance_type" {
+  default = "t2.micro"
+}
+
+variable "aws_region" {
+  default = "us-east-1"
+}
+
+------------
+Normal:
+-------
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+
+resource "aws_instance" "my-instance" {
+  count         = var.instance_count
+  ami           = lookup(var.ami,var.aws_region)
+  instance_type = var.instance_type
+  key_name      = "zoomkey"
+
+  tags = {
+    Name  = "Terraform-${count.index + 1}"
+    Batch = "5AM"
+  }
+}
+
+
+variable "ami" {
+  type = map
+
+  default = {
+    "us-east-1" = "ami-087c17d1fe0178315"
+  }
+}
+
+variable "instance_count" {
+  default = "3"
+}
+
+variable "instance_type" {
+  default = "t2.micro"
+}
+
+variable "aws_region" {
+  default = "us-east-1"
+}
+
+-------------------------
+
+6. Multiple users:
+
+-----
+
+provider "aws" {
+	region = "us-east-1"
+}
+
+resource "aws_iam_user" "example" {
+	name = "deng.${count.index}"
+	count = 3
+}
+
+# now multiple user using list
+
+variable "user_names" {
+	description = "create iam users"
+	type = "list"
+	default = ["kapil", "deng", "yuva"]
+}
+
+resource "aws_iam_user" "testing" {
+	count = "${length(var.user_names)}"
+	name = "${element(var.user_names, count.index)}"
+	
+}
+
+output "all_arn" {
+	value = ["${aws_iam_user.testing.*.arn}"]
+}
+
+data "aws_iam_policy_document" "ec2_read_only" {
+	statement {
+		effect = "Allow"
+		actions = ["ec2:Describe*"]
+		resources = ["*"]
+	}
+}
+
+#now create the policy from that document
+
+resource "aws_iam_policy" "ec2_read_only" {
+	name = "ec2-read-only"
+	policy = "${data.aws_iam_policy_document.ec2_read_only.json}"
+}
+
+#now attach iam policy to users
+
+resource "aws_iam_user_policy_attachment" "ec2_access" {
+	count = "${length(var.user_names)}"
+	user = "${element(aws_iam_user.testing.*.name, count.index)}"
+	policy_arn = "${aws_iam_policy.ec2_read_only.arn}"
+
+}
+
+--------------------------
+
+7. EC2 instance with custom root:
+
+---------
+
+provider "aws" {
+  region     = "us-east-1"
+}
+
+#security group
+resource "aws_security_group" "webserver_access" {
+        name = "webserver_access"
+        description = "allow ssh and http"
+        vpc_id      = "vpc-your-vpc-id"
+
+        ingress {
+                from_port = 80
+                to_port = 80
+                protocol = "tcp"
+                cidr_blocks = ["0.0.0.0/0"]
+        }
+
+        ingress {
+                from_port = 22
+                to_port = 22
+                protocol = "tcp"
+                cidr_blocks = ["0.0.0.0/0"]
+        }
+
+        egress {
+                from_port = 0
+                to_port = 0
+                protocol = "-1"
+                cidr_blocks = ["0.0.0.0/0"]
+        }
+
+
+}
+#security group end here
+
+resource "aws_instance" "ourfirst" {
+  ami           = "ami-0447a12f28fddb066"
+  availability_zone = "us-east-1a"
+  instance_type = "t2.micro"
+  security_groups = ["${aws_security_group.webserver_access.name}"]
+  /* the key zoomkey must be downloaded in your machine from where
+  you are executing this code. So first create the key, download it
+  and then use it */
+  key_name = "testkey"
+#root disk
+  root_block_device {
+    volume_size = "26"
+    volume_type = "gp2"
+    delete_on_termination = true
+  }
+  
+#additional data disk
+  ebs_block_device {
+     device_name = "/dev/xvdb"
+     volume_size = "10"
+     volume_type = "gp2"
+     delete_on_termination = true
+  }
+  
+  user_data = <<-EOF
+        #!/bin/bash
+        sudo yum install httpd -y
+        sudo systemctl start httpd
+        sudo systemctl enable httpd
+        echo "<h1>sample webserver using terraform</h1>" | sudo tee /var/www/html/index.html
+  EOF
+
+  tags = {
+    Name  = "hello-India"
+    Stage = "testing"
+    Location = "India"
+  }
+
+}
+
+----------------------------
+
+8. Custom VPC:
+
+------------
+
+provider "aws" {
+  region = "us-east-1"
+
+}
+
+#This is VPC code
+
+resource "aws_vpc" "test-vpc" {
+  cidr_block = "10.0.0.0/16"
+}
+
+# this is Subnet code
+resource "aws_subnet" "public-subnet" {
+  vpc_id     = aws_vpc.test-vpc.id
+   availability_zone = "us-east-1a"
+  cidr_block = "10.0.0.0/24"
+
+  tags = {
+    Name = "Public-subnet"
+  }
+}
+
+
+resource "aws_subnet" "private-subnet" {
+  vpc_id     = aws_vpc.test-vpc.id
+  availability_zone = "us-east-1b"
+  cidr_block = "10.0.1.0/24"
+
+  tags = {
+    Name = "Private-subnet" #security group
+  }
+}
+resource "aws_security_group" "test_access" {
+  name        = "test_access"
+  vpc_id      = aws_vpc.test-vpc.id
+  description = "allow ssh and http"
+
+  ingress {
+    description = "http"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "ssh"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+ ingress {
+    description = "https"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+
+}
+#security group end here #internet gateway code
+resource "aws_internet_gateway" "test-igw" {
+  vpc_id = aws_vpc.test-vpc.id
+
+  tags = {
+    Name = "test-igw"
+  }
+}
+
+
+#Public route table code
+
+resource "aws_route_table" "public-rt" {
+  vpc_id = aws_vpc.test-vpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.test-igw.id
+  }
+
+
+  tags = {
+    Name = "public-rt"
+
+  }
+}
+#route table assosication code
+resource "aws_route_table_association" "public-asso" {
+  subnet_id      = aws_subnet.public-subnet.id
+  route_table_id = aws_route_table.public-rt.id
+}
+#ec2 code
+resource "aws_instance" "sanjay-server" {
+  ami             = "ami-05caa5aa0186b660f"
+  subnet_id       = aws_subnet.public-subnet.id
+  instance_type   = "t2.micro"
+  security_groups = ["${aws_security_group.test_access.id}"]
+  key_name        = "ltitestkey"
+  tags = {
+    Name     = "test-World"
+    Stage    = "testing"
+    Location = "chennai"
+  }
+
+}
+
+
+##create an EIP for EC2
+resource "aws_eip" "sanjay-ec2-eip" {
+  instance = aws_instance.sanjay-server.id
+}
+
+#ssh keypair code
+resource "aws_key_pair" "ltimindtree" {
+  key_name   = "ltitestkey"
+  public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDRE4i+Rl5U9JGJR94UxdcWcYUaMdi2+1PTBWDNZ2/IZWsf52kbqgmuZdf65274SI7mPH/LNQ5k70DUTREl35dbSeW2E1qeUAOpjyevR/7Nk8mEiwBnqzuYTjJi4TglIcL3FGnkRqZXrHFTQxhIHWIRq1FVsALdB0G8eBA/RsmBR9kFAOzzW9fsmEdi0h1gUx+KhasAnizHr8cuTfj+lTkchHIl0Nh4k8SJrndFxukkAAMbRRy5HTiHjXgyG7DtOdwJEQN7NurrpeaNFKvbyR9Vp9HbOwCG+lKo01LM+imtcdNxZTOoUz5McKQ+HLg9xZNEjNF1ln7WTYG9paVSND/11rE5ZLGHqCTWUYwnhftCMywHEJCBXsswGaYCzBidg/bWciA9Z6MUxkQn+8YV8Z+Kl3gaab++DRYf4jsZOgL5KUFOXXUhCpud8Fgsgjfos6x67FyNVKlNpw0qwU4iWU1p30/ssH6e/V8vYhTnN30CoOMN+fadVJ15VmdsZHgG7hE= root@ip-172-31-12-94.ap-south-1.compute.internal"
+}
+
+###this is database ec2 code
+resource "aws_instance" "database-server" {
+  ami             = "ami-05caa5aa0186b660f"
+  subnet_id       = aws_subnet.private-subnet.id
+  instance_type   = "t2.micro"
+  security_groups = ["${aws_security_group.test_access.id}"]
+  key_name        = "ltitestkey"
+  tags = {
+    Name     = "db-World"
+    Stage    = "stage-base"
+    Location = "delhi"
+  }
+
+}
+##create a public ip for Nat gateway
+resource "aws_eip" "nat-eip" {
+}
+### create Nat gateway
+resource "aws_nat_gateway" "my-ngw" {
+  allocation_id = aws_eip.nat-eip.id
+  subnet_id     = aws_subnet.public-subnet.id
+}
+
+#create private route table
+resource "aws_route_table" "private-rt" {
+  vpc_id = aws_vpc.test-vpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_nat_gateway.my-ngw.id
+  }
+
+
+  tags = {
+    Name = "private-rt"
+  }
+}
+##route table assosication code
+resource "aws_route_table_association" "private-asso" {
+  subnet_id      = aws_subnet.private-subnet.id
+  route_table_id = aws_route_table.private-rt.id
+}
+
+------------
+
+EC2 instance with SG:
+
+provider "aws" {
+  region     = "ap-south-1"
+}
+
+#security group
+resource "aws_security_group" "web_access" {
+        name = "web_access"
+        description = "allow ssh and http"
+
+        ingress {
+                from_port = 80
+                to_port = 80
+                protocol = "tcp"
+                cidr_blocks = ["0.0.0.0/0"]
+        }
+
+        ingress {
+                from_port = 22
+                to_port = 22
+                protocol = "tcp"
+                cidr_blocks = ["0.0.0.0/0"]
+        }
+
+        egress {
+                from_port = 0
+                to_port = 0
+                protocol = "-1"
+                cidr_blocks = ["0.0.0.0/0"]
+        }
+
+
+}
+#security group end here
+
+
+resource "aws_instance" "web-server" {
+  ami           = "ami-0447a12f28fddb066"
+  availability_zone = "ap-south-1a"
+  instance_type = "t2.micro"
+  security_groups = ["${aws_security_group.web_access.name}"]
+  tags = {
+    Name  = "hello-World"
+    Stage = "testing"
+    Location = "INDIA"
+  }
+
+}
+
+
+/*
+run
+terraform validate
+terraform plan
+terraform apply
+check ec2 instance on aws dashboard
+then destroy using
+terraform destroy
+*/
+
+------------
+9. VPC Subnnet using Variables:
+
+-------------
+
+provider "aws" {
+	region = "us-east-1"
+}
+
+#variables 
+
+variable "vpc_cidr" {
+	default = "10.1.0.0/16"
+	description = "cidr for our custom vpc"
+}
+
+variable "subnet_cidr" {
+	default = "10.1.1.0/24"
+	description = "cidr for subnet"
+}
+
+variable "availability_zone" {
+	default = "us-east-1a"
+	description = "AZ for subnet"
+}
+
+variable "instance_ami" {
+	default = "ami-0b5bff6d9495eff69"
+	description = "default ami for instances"
+}
+
+variable "instance_type" {
+	default = "t2.micro"
+	description = "instance type for ec2"
+}
+
+variable "env_tag" {
+	default = "production"
+	description = "environment tag"
+}
+
+
+# code - creating vpc
+
+resource "aws_vpc" "vpcone" {
+	cidr_block = "${var.vpc_cidr}"
+	tags = {
+		Name = "${var.env_tag}"
+	}
+}
+
+# code - creating IG and attaching it to VPC
+
+resource "aws_internet_gateway" "vpcone-ig" {
+	vpc_id = "${aws_vpc.vpcone.id}"
+	tags = {
+		Name = "${var.env_tag}"
+	}
+}
+
+# code - create subnet inside our vpc
+
+resource "aws_subnet" "subnet_public" {
+	vpc_id = "${aws_vpc.vpcone.id}"
+	cidr_block = "${var.subnet_cidr}"
+	map_public_ip_on_launch = "true"
+	availability_zone = "${var.availability_zone}"
+	tags = {
+		Name = "${var.env_tag}"
+	}
+
+}
+
+# code - modifying route 
+
+resource "aws_route_table" "rtb_public" {
+	vpc_id = "${aws_vpc.vpcone.id}"
+	route {
+		cidr_block = "0.0.0.0/0"
+		gateway_id = "${aws_internet_gateway.vpcone-ig.id}"
+	}
+	tags = {
+		Name = "${var.env_tag}"
+	}
+}
+
+
+# code - attaching subnets to route table
+
+resource "aws_route_table_association" "rta_subnet_public" {
+	subnet_id = "${aws_subnet.subnet_public.id}"
+	route_table_id = "${aws_route_table.rtb_public.id}"
+}
+
+
+# code - create security group
+
+resource "aws_security_group" "sg_newvpc" {
+	name = "newvpc"
+	vpc_id = "${aws_vpc.vpcone.id}"
+
+	ingress {
+		from_port = 22
+		to_port = 22
+		protocol = "tcp"
+		cidr_blocks = ["0.0.0.0/0"]
+	}
+	
+	egress {
+		from_port = 0
+		to_port = 0
+		protocol = "-1"
+		cidr_blocks = ["0.0.0.0/0"]
+	}
+
+	tags = {
+		Name = "${var.env_tag}"
+	}
+
+}
+
+
+# code - create instance
+
+resource "aws_instance" "test" {
+	ami = "${var.instance_ami}"
+	instance_type = "${var.instance_type}"
+	subnet_id = "${aws_subnet.subnet_public.id}"
+	vpc_security_group_ids = ["${aws_security_group.sg_newvpc.id}"]
+	tags = {
+		Name = "${var.env_tag}"
+	}
+}
+
+
+
+
+================================================
+
+================================================
+
+K8S:
+
+--------------------
+
+using kubeadm:
+---------
+
+<< Not needed>>
+- kubeadm installation: (from Kubernetes.io)
+
+sudo apt-get update
+# apt-transport-https may be a dummy package; if so, you can skip that package
+sudo apt-get install -y apt-transport-https ca-certificates curl gpg
+
+# If the directory `/etc/apt/keyrings` does not exist, it should be created before the curl command, read the note below.
+# sudo mkdir -p -m 755 /etc/apt/keyrings
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.34/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+# This overwrites any existing configuration in /etc/apt/sources.list.d/kubernetes.list
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.34/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+sudo apt-get update
+sudo apt-get install -y kubelet kubeadm kubectl
+sudo apt-mark hold kubelet kubeadm kubectl
+
+sudo systemctl enable --now kubelet
+
+<< ^^^ Not Needed>>
+
+- Make 3 instances: - choose ubuntu ami -> t2.medium -> all instances in same zone -> increase storage size to 12, gp2 -> launch 
+
+1 vm will have 2 core cpu, 2 gb ram, ubuntu: 22.04 (t3.small)
+2 vms 1 core cpu 1 gb ram. (t2.micro)
+
+The bigger instance name is control-plane, and the others are worker-1 and worker-2.
+Architecture:
+
+Control plane
+	-> worker node 1
+	-> worker node 2
+	
+	-- we need to assign ip address,
+ 
+Connect the instances
+
+-- k8s uses port: 
+
+Protocol	Direction	Port Range	Purpose	Used By
+TCP	Inbound	6443	Kubernetes API server	All
+TCP	Inbound	2379-2380	etcd server client API	kube-apiserver, etcd
+TCP	Inbound	10250	Kubelet API	Self, Control plane
+TCP	Inbound	10259	kube-scheduler	Self
+TCP	Inbound	10257	kube-controller-manager	Self
+
+
+Worker node(s)
+Protocol	Direction	Port Range	Purpose	Used By
+TCP	Inbound	10250	Kubelet API	Self, Control plane
+TCP	Inbound	10256	kube-proxy	Self, Load balancers
+TCP	Inbound	30000-32767	NodePort Services†	All
+UDP	Inbound	30000-32767	NodePort Services†	All
+
+
+-- allow these ports in inbound sg (in all instance's sg)
+
+GitHub: https://github.com/sanjayguruji/Sanjaya-K8S-Code/blob/main/k8s-installtion-with-containerd-on-ubuntu%2024.04
+
+->
+
+############################################################################
+K8S installation with Containerd on Ubuntu 24.04
+############################################################################
+    apt update -y
+    apt install containerd -y
+    systemctl start containerd
+    systemctl enable containerd
+    sudo modprobe overlay
+    sudo modprobe br_netfilter
+cat > /etc/modules-load.d/kubernetes.conf << EOF
+br_netfilter
+ip_vs
+ip_vs_rr
+ip_vs_wrr
+ip_vs_sh
+overlay
+EOF
+
+cat > /etc/sysctl.d/kubernetes.conf << EOF
+net.ipv4.ip_forward = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+EOF
+
+   sysctl --system
+   mkdir -p /etc/containerd
+   containerd config default | sudo tee /etc/containerd/config.toml
+   vim /etc/containerd/config.toml
+   systemctl restart containerd
+   sudo apt-get update
+   sudo apt-get install -y apt-transport-https ca-certificates curl gpg
+   curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+   
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.32/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+   
+   sudo apt-get update
+   sudo apt-get install -y kubelet kubeadm kubectl
+   sudo systemctl enable --now kubelet
+   kubeadm config images pull
+   kubeadm init  (do only on control plane)
+   
+Your Kubernetes control-plane has initialized successfully!
+
+To start using your cluster, you need to run the following as a regular user:
+
+  mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/configconfigure Pod Network
+
+<Copy the join worker nodes key>
+##########################################################################################
+Configure Pod Network
+
+curl https://raw.githubusercontent.com/projectcalico/calico/v3.29.2/manifests/calico.yaml -O
+
+kubectl apply -f calico.yaml
+
+############################################################################################
+
+^^ Do this on all the remaining nodes, till before kubeadm init.
+
+--------------
+
+kubectl get nodes
+
+---------
+
+How to create pods?
+
+go to Kubernetes.io -> search pod
+(here we write code in yaml -> take care of indentation -> it's case sensitive and space sensitive)
+(write the code manually now)
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  containers:
+  - name: nginx
+    image: nginx:1.14.2
+    ports:
+    - containerPort: 80
+
+
+Make a directory: /name:
+cd /name
+vim first-pod.yaml
+<write the code from the documentation>
+kubectl apply -f first-pod.yaml
+cd
+kubectl get pod  (if we do't specify namespae, pod will go to default)
+kubectl describe pod nginx
+kubect get pod -o wide (when we want even more info) 
+
+kubectl expose pod nginx --type=LoadBalancer --port=80
+kubectl get svc
+Copy the external ip of the load balancer and paste it on browser
+---------
+
+delete:
+
+kubectl delete pod nginx (-> name)
+
+----------------------------------------
+-------------------------------------
+K8S cluster using KOPS:
+
+--------------------------
+--------------------------
+
+Documentation:
+
+https://github.com/sanjayguruji/Sanjaya-K8S-Code/blob/main/k8s-cluster-with-kops
+
+-- 1st launch an instance -> ubuntu -> 22.04 -> t2.micro -> storage: 10G
+- connect
+- apt update -y
+- install aws cli  (search: aws cli install)
+
+install AWSCLI
+
+apt install unzip -y
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip
+sudo ./aws/install
+
+
+- install kubectl utility (search: kubectl install Kubernetes)
+
+Install kubectl
+
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+kubectl version --client
+
+- install kops (Search: kops install -> official website )
+
+curl -Lo kops https://github.com/kubernetes/kops/releases/download/$(curl -s https://api.github.com/repos/kubernetes/kops/releases/latest | grep tag_name | cut -d '"' -f 4)/kops-linux-amd64
+chmod +x ./kops
+sudo mv ./kops /usr/local/bin/
+
+
+- create iam user
+
+[iam -> users -> create user -> name -? give (AdministratorAccess permission - but don't give in prod)
+
+Download access key and secret key
+
+-- aws configure
+
+- create Iam role, and give access to route53, EC2, S3 full access, IAM
+-- now attach the role to ec2
+(instances -> actions -> security -> modify iam role -> the role created)
+
+Install kops on ubuntu instance:
+
+ curl -LO https://github.com/kubernetes/kops/releases/download/$(curl -s https://api.github.com/repos/kubernetes/kops/releases/latest | grep tag_name | cut -d '"' -f 4)/kops-linux-amd64
+ chmod +x kops-linux-amd64
+ sudo mv kops-linux-amd64 /usr/local/bin/kops
+ 
+To check Kops Version
+  kops version 
+
+
+- then we go inside route53 (it' a global service) and make a dns
+- search route53 -> get started -> hosted zone -> create hosted zone -> name -> private -> vpc: region: us-east-1, zone: us-east-1a -> create
+
+- create s3 bucket
+
+aws s3 mb s3://dev.k8s.ayu.in
+
+------------------
+
+Check cluster name:
+
+aws s3 ls
+
+
+Expose environment variable:
+
+ export KOPS_STATE_STORE=s3://dev.k8s.ayu.in
+
+Create sshkeys before creating cluster
+
+ ssh-keygen
+
+Create kubernetes cluster definitions on S3 bucket
+
+ kops create cluster --cloud=aws --zones=us-east-1a --name=dev.k8s.ayu.in --dns-zone=ayu.in --dns private
+
+Create kubernetes cluster
+
+(After running the above command, there will be a code like below: Ctrl c, ctrl v it, run it.
+Then, we'll get a code like 
+
+kops validate cluster --wait 10m
+
+Run it, it may show as failed, but in bg, it'll be ready. 
+
+kubectl get node (should show as ready, if not, then run the 10 minutes command again)
+
+  kops update cluster dev.k8s.ayu.in --yes --admin
+
+Validate your cluster
+
+ kops validate cluster
+
+To list nodes
+
+  kubectl get nodes
+
+<Not needed>
+
+Deploying Nginx Container
+
+  kubectl run sample-nginx --image=nginx --replicas=2 --port=80
+  kubectl get pods
+  kubectl get deployments
+
+Expose the deployment as service. This will create an ELB in front of those 2 containers and allow us to publicly access them:
+
+ kubectl expose deployment sample-nginx --port=80 --type=LoadBalancer
+ kubectl get services -o wide 
+
+<Not Needed>
+------------------
+
+Cluster delete:
+
+aws s3 ls (show clusters)
+
+kops delete cluster dev.k8s.ayu-shi.in --yes
+
+OR
+
+kops delete cluster dev.k8s.ayu-shi.in --yes --state=s3://dev.k8s.ayu-shi.in
+
+==================================================
+==================================================
+
+EKS Cluster:
+
+-------------------------
+
+#################################################################################################################
+Host EKS CLUSTER via EKSCTL
+#################################################################################################################
+ create iam role and attach policy
+ AmazonEC2RegistryFullAccess,EKSpolicy and IAM full access
+ apt-get update -y
+ apt install unzip -y
+ curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+ unzip awscliv2.zip
+ sudo ./aws/install
+ aws configure
+ Install EKS Tool
+ curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+ sudo mv /tmp/eksctl /usr/local/bin
+ eksctl version
+ Install Kubectl
+ curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+ sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl 
+ kubectl version --client
+ SSh-keygen
+ Create EKS Cluster
+ eksctl create cluster --name my-cluster --region region-code --version 1.32 --vpc-public-subnets subnet-ExampleID1,subnet-ExampleID2 --without-nodegroup
+##############################################################################################################################
+ ##Create a Node Group##
+##############################################################################################################################
+ eksctl create nodegroup \
+  --cluster my-cluster \
+  --region us-east-2 \
+  --name my-node-group \
+  --node-ami-family Ubuntu2204 \
+  --node-type t2.small \
+  --subnet-ids subnet-086ced1a84c94a342,subnet-01695faa5e0e61d97 \
+  --nodes 3 \
+  --nodes-min 2 \
+  --nodes-max 4 \
+  --ssh-access \
+  --ssh-public-key /root/.ssh/id_rsa.pub
+
+or you can make cluster in this way
+################################################################################################################################
+ eksctl create cluster --name milestone-2 --region us-east-1 --version 1.32 --node-type t2.small --nodes 3 --nodes-min 2 --nodes-max 4 --ssh-access --ssh-public-key /root/.ssh/id_rsa.pub
+
+
+
+
+ When You want to delete cluster
+ eksctl delete cluster --name my-cluster
+
+
+After creating node-group, create pod -> expose -> run on browser
+=========================================
+
+NAMESPACE, QUOTA, REPLICASET, HORIZONTAL POD AUTOSCALING, DEPLOYMENT
+
+--------------------------------------------
+
+NAMESPACE:
+----
+LIST THE NAMESPACES:
+
+
+kubectl get ns 
+
+OR
+
+kubectl get namespace
+
+(Here, ns is short for namespace.)
+
+------------------------
+
+kubectl get pod -n kube-system  (shows the system pods automatically made)
+
+-----------------------
+
+- so now we create a namespace to work in, and segregate the pods etc we make that way (multiple teams work that way)
+
+Pod:
+
+kubectl get pod -n default  (If we don't create or specify a namespace, pod gets stored in default namespace.)
+
+--------
+
+CLEAN WORKFLOW:
+
+kubectl get ns
+kubectl create ns prod
+cd /name (the dir where pod is created)
+ll
+cat first-pod.yaml (the pod you created)
+kubectl apply -f first-pod.yaml --namespace=prod  (Creating the pod in the namespace prod)
+kubectl get pod -n prod
+
+
+-- we can also hardcode this by stating the namespace in the .yaml file:
+	
+	include the namespace in the metadata
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  namespace: <my-namespace>
+spec:
+  containers:
+  - name: nginx
+    image: nginx:1.14.2
+    ports:
+    - containerPort: 80
+
+Then, apply.
+
+kubectl run podname --image=podname --namespace=my-namespace
+
+^^ -- set namespace of already running pod
+
+HOW TO CHANGE THE CONTEXT OF NAMESPACE? 
+
+kubectl config set-context --current --namespace=prod
+
+==================================
+
+DOCKER:
+
+---------------
+
+Make instance,connect it.
+yum install docker* -y
+systemctl start docker
+systemctl enable docker
+
+Go to dockerhub -> search ubuntu, httpd (no need to search, just do:
+docker pull httpd:trixie
+docker pull ubuntu:rolling
+docker run -it --name docker-con -p 8080:80 ubuntu:rolling /bin/bash
+
+Open another terminal, connect docker instance from there as well. Inside that terminal:
+
+docker ps -a
+
+in the prev terminal, inside the container:
+
+apt update -y
+apt install apache2 -y
+echo "Hello" > /var/www/html/index.html
+service apache2 start
+service apache2 status
+
+Next, copy public ip of instance, paste it on browser:
+<public ip>:8080
+
+----------------------------------
+
+ANSIBLE
+-----------
+
+1. Make 3 instances : control-plane, 2 worker-nodes
+2. passwd root on the instances
+On control-plane:
+3. put the ip of all 3 instances with the hostname in the /etc/hosts
+- now ssh configure (/etc/ssh/sshd_config) -> make line 40 (permit root login -> yes)
+- systemctl start sshd
+- systemctl enable sshd
+- (systemctl restart sshd)
+
+On control-plane:
+ssh-keygen
+copy the public key, paste it on .ssh -> authorized_keys file
+do (ssh root@<pvt ip of worker>)
+
+Installing ansible
+
+- yum update -y
+- yum install ansible-core* -y
+- ansible --version
+
+cd /etc/ansible
+nano hosts
+
+[Dev-Server]
+worker-node-1
+
+[Prod-Server]
+worker-node-2
+
+mkdir /project-x
+cd /project-x/
+vim my-first-playbook.yaml
+
+---
+- name: Create user and install/configure Apache
+  hosts: Dev-Server
+  become: yes
+  tasks:
+    - name: Create user 'ayu' with specific parameters
+      ansible.builtin.user:
+        name: ayu
+        uid: 1200
+        home: /ltim
+        shell: /bin/bash
+        state: present
+
+    - name: Install Apache on remote servers
+      ansible.builtin.yum:
+        name: httpd
+        state: present
+
+    - name: Reload systemd to recognize new services
+      ansible.builtin.systemd:
+        daemon_reload: yes
+
+    - name: Start and enable Apache service
+      ansible.builtin.systemd:
+        name: httpd
+        state: started
+        enabled: true
+
+ansible-playbook my-playbook.yaml --syntax-check
+ansible-playbook my-playbook.yaml -C  (Dry run)
+ansible-playbook my-playbook.yaml  (execute)
